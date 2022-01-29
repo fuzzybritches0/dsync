@@ -1,0 +1,11 @@
+dsync - HELP
+
+dsyn [-h|--help] [-d|--delete] [source] [destination]
+
+Copy all files that are newer or do not exist in [source] to [destination].
+[source] and [destination] must have the same directory name! [destination]
+must exist and be writeable.
+
+[-h|--help]   Show this help screen.
+[-d|--delete] Also delete files in [destination] that no longer exist in [source]. (DANGER!)
+
