@@ -1,0 +1,136 @@
+#!/bin/bash
+
+# BSD 3-Clause License
+# 
+# Copyright (c) 2022, Kurt Manucredo
+# 
+# All rights reserved.
+# 
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+# 
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+# 
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+# 
+# 3. Neither the name of the copyright holder nor the names of its
+#    contributors may be used to endorse or promote products derived from
+#    this software without specific prior written permission.
+# 
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+help_screen() {
+
+	[ "${1}" ] && echo "ERROR: ${1}"
+	echo
+	echo " dsync - HELP"
+	echo
+	echo " $(basename "${0}") [-h|--help] [-d|--delete] [source] [destination]"
+	echo
+	echo " Copy all files that are newer or do not exist in [source] to [destination]."
+	echo " [source] and [destination] must have the same directory name! [destination]"
+	echo " must exist and be writeable."
+	echo
+	echo " [-h|--help]   Show this help screen."
+	echo " [-d|--delete] Also delete files in [destination] that no longer exist in [source]. (DANGER!)"
+	echo
+	exit ${2}
+}
+
+sanitize_front() {
+
+	ret="${1}"
+	while [ "${ret:0:2}" == "./" ]; do
+		ret="${ret:2}"
+	done
+	echo "${ret}"
+}
+
+sanitize_back() {
+
+	ret="${1}"
+	len="${#ret}"
+
+	((len--))
+
+	while [ "${ret:${len}:1}" == "/" ]; do
+		ret="${ret:0:${len}}"
+		((len--))
+	done
+	echo "${ret}"
+}
+
+dir_rm() {
+
+	for file in "${2}"/.*; do
+		if [ "${file}" != "${2}/." ] && [ "${file}" != "${2}/.." ] && [ "${file}" != "${2}/.*" ]; then
+			if [ ! -e "${1}${file:${len2}}" ]; then
+				[ ! -h "${1}${file:${len2}}" ] && rm -rfv "${file}"
+			else
+				[ -d "${file}" ] && dir_rm "${1}" "${file}"
+			fi
+		fi
+	done
+
+	for file in "${2}"/*; do
+		if [ "${file}" != "${2}/*" ]; then
+			if [ ! -e "${1}${file:${len2}}" ]; then
+				[ ! -h "${1}${file:${len2}}" ] && rm -rfv "${file}"
+			else
+				[ -d "${file}" ] && dir_rm "${1}" "${file}"
+			fi
+		fi
+	done
+}
+
+[ "${1}" == "-h" ] || [ "${1}" == "--help" ] && help_screen "" 0
+
+if [ "${1}" == "-d" ] || [ "${1}" == "--delete" ]; then
+	delete=1
+	dir1="${2}"
+	dir2="${3}"
+else
+	dir1="${1}"
+	dir2="${2}"
+fi
+
+[ ! "${dir1}" ] || [ ! "${dir2}" ] && help_screen "need [source] and [destination]!" 1
+
+[ ! -d "${dir1}" ] || [ ! -d "${dir2}" ] &&\
+	help_screen "[source] and [destination] need to exist and be directories!" 1
+
+dir1="$(sanitize_front "${dir1}")"
+dir2="$(sanitize_front "${dir2}")"
+
+dir1="$(sanitize_back "${dir1}")"
+dir2="$(sanitize_back "${dir2}")"
+
+len1="${#dir1}"
+len2="${#dir2}"
+
+[ "${dir1}" == "${dir2}" ] && help_screen "[source] and [destination] can't be the same!" 1
+
+[ "$(basename "${dir1}")" != "$(basename "${dir2}")" ] &&\
+	help_screen "[source] and [destination] directory must have the same name!" 1
+
+[ ! -w "${dir2}" ] && help_screen "[destination] not writeable!" 1
+
+cp -rPpuv "${dir1}" "$(dirname "${dir2}")" || exit 1
+[ "${delete}" ] && dir_rm "${dir1}" "${dir2}"
+
+exit 0
+
